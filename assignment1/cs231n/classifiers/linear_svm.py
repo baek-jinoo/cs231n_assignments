@@ -31,7 +31,7 @@ def svm_loss_naive(W, X, y, reg):
     correct_class_score = scores[y[i]]
     for j in xrange(num_classes):
       if j == y[i]:
-        continue
+       continue
       margin = scores[j] - correct_class_score + 1 # note delta = 1
       if margin > 0:
         dW[:,y[i]] -= X[i]
@@ -74,11 +74,25 @@ def svm_loss_vectorized(W, X, y, reg):
   # Implement a vectorized version of the structured SVM loss, storing the    #
   # result in loss.                                                           #
   #############################################################################
-  pass
+  dot_product = np.dot(X,W) # (500, 3073) * (3073, 10) => (500, 10)
+  correct_scores = dot_product[np.arange(len(dot_product)), y] # use label vector to get scores out (500, )
+  pre_max = dot_product - np.expand_dims(correct_scores, 1) + 1 # evaluate scores for non label values => (500, 10)
+  pre_max[np.arange(len(dot_product)), y] = 0 # set label scores to zero => (500, 10)
+  scores = np.maximum(pre_max, 0) # only care about scores above zero => (500, 10)
+  loss = np.sum(scores) / len(scores) # element-wise divide by N => ()
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
 
+  scores_bool = scores > 0
+  reciprocal_grad = -np.reciprocal(dot_product)
+  reciprocal_grad = reciprocal_grad * scores_bool
+  print("s", reciprocal_grad[:5][:10])
+  reciprocal_grad[np.arange(len(y)), y] = 1
+  print("s", reciprocal_grad[:5][:10])
+  dW = np.dot(reciprocal_grad, W.T)
+  print("dW", dW.shape)
+  print("in dW", dW[:5][:5])
 
   #############################################################################
   # TODO:                                                                     #
@@ -89,7 +103,7 @@ def svm_loss_vectorized(W, X, y, reg):
   # to reuse some of the intermediate values that you used to compute the     #
   # loss.                                                                     #
   #############################################################################
-  pass
+
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
