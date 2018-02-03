@@ -83,17 +83,6 @@ def svm_loss_vectorized(W, X, y, reg):
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
-
-  scores_bool = scores > 0
-  reciprocal_grad = -np.reciprocal(dot_product)
-  reciprocal_grad = reciprocal_grad * scores_bool
-  print("s", reciprocal_grad[:5][:10])
-  reciprocal_grad[np.arange(len(y)), y] = 1
-  print("s", reciprocal_grad[:5][:10])
-  dW = np.dot(reciprocal_grad, W.T)
-  print("dW", dW.shape)
-  print("in dW", dW[:5][:5])
-
   #############################################################################
   # TODO:                                                                     #
   # Implement a vectorized version of the gradient for the structured SVM     #
@@ -103,7 +92,11 @@ def svm_loss_vectorized(W, X, y, reg):
   # to reuse some of the intermediate values that you used to compute the     #
   # loss.                                                                     #
   #############################################################################
-
+  scores_bool = scores > 0 # turn all turned on gradient to True
+  gradient_multiple = scores_bool * 1. # turn Trues into 1.
+  num_negate_classes_for_label = np.sum(gradient_multiple, axis=1) # count the number of negative gradients
+  gradient_multiple[np.arange(len(y)), y] = -num_negate_classes_for_label # place the negative gradient counts for target label
+  dW = np.dot(X.T, gradient_multiple) / len(y) # divide by count for the last step of the computation graph via chain rule
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
