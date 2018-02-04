@@ -75,8 +75,8 @@ def svm_loss_vectorized(W, X, y, reg):
   # result in loss.                                                           #
   #############################################################################
   dot_product = np.dot(X,W) # (500, 3073) * (3073, 10) => (500, 10)
-  correct_scores = dot_product[np.arange(len(dot_product)), y] # use label vector to get scores out (500, )
-  pre_max = dot_product - np.expand_dims(correct_scores, 1) + 1 # evaluate scores for non label values => (500, 10)
+  label_scores = dot_product[np.arange(len(y)), y] # use label vector to get scores out (500, )
+  pre_max = dot_product - np.expand_dims(label_scores, 1) + 1 # evaluate scores for non label values => (500, 10)
   pre_max[np.arange(len(dot_product)), y] = 0 # set label scores to zero => (500, 10)
   scores = np.maximum(pre_max, 0) # only care about scores above zero => (500, 10)
   loss = np.sum(scores) / len(scores) # element-wise divide by N => ()

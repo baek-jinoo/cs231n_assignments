@@ -30,7 +30,24 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  num_classes = W.shape[1]
+  num_data = X.shape[0]
+  for data_index in xrange(num_data):
+    scores = X[data_index].dot(W)
+    denominator = 0
+    numerator = 0
+    for class_index in xrange(num_classes):
+      exponent = np.exp(scores[class_index])
+      denominator += exponent
+      if class_index == y[data_index]:
+        numerator = exponent
+    loss += -np.log(numerator/denominator)
+    dW += -(denominator/numerator)
+  loss /= num_data
+  dW /= num_data
+  loss += reg * np.sum(W * W)
+  dW -= 2 * reg * W
+  
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
@@ -54,7 +71,17 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  scores = np.dot(X,W) # (500, 10)
+  maxes = np.max(scores, axis=1)
+  maxes = np.expand_dims(maxes, 1)
+  scores -= maxes
+  exps = np.exp(scores)
+  label_scores = exps[np.arange(len(y)), y]
+  sums = np.sum(exps, axis=1)
+  label_probs = label_scores / sums
+  print("probs", label_probs)
+  label_logs_probs = -np.log(label_probs)
+  print("logs", label_logs_probs)
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
