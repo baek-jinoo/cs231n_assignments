@@ -41,7 +41,7 @@ def softmax_loss_naive(W, X, y, reg):
       denominator += exponent
       if class_index == y[data_index]:
         numerator = exponent
-    loss += -np.log(numerator/denominator) * y[data_index]
+    loss += -np.log(numerator/denominator)
     dW += -(denominator/numerator)
   loss /= num_data
   dW /= num_data
