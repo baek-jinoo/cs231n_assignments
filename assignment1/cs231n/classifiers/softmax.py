@@ -30,23 +30,47 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
+  X -= np.max(X, axis=0)
   num_classes = W.shape[1]
   num_data = X.shape[0]
+
   for data_index in xrange(num_data):
     scores = X[data_index].dot(W)
     denominator = 0
     numerator = 0
+    exponents = {}
+
+    # calculate loss
     for class_index in xrange(num_classes):
       exponent = np.exp(scores[class_index])
+      exponents[class_index] = exponent
       denominator += exponent
       if class_index == y[data_index]:
         numerator = exponent
+
     loss += -np.log(numerator/denominator)
-    dW += -(denominator/numerator)
+
+    # calculate gradient
+    for class_index in xrange(num_classes):
+      exponent = exponents[class_index]
+      score = scores[class_index]
+      grad_e = np.exp(score)
+      grad_log = (denominator / numerator)
+
+      if class_index == y[data_index]:
+        grad_product = 1/denominator
+        dW[:, class_index] += X[data_index] * grad_e * grad_product * grad_log
+
+      grad_reciprocal = -1 / (denominator**2)
+      grad_product = numerator
+      dW[:, class_index] += X[data_index] * grad_e * grad_reciprocal * grad_product * grad_log
+
   loss /= num_data
   dW /= num_data
+  dW *= -1
+
   loss += reg * np.sum(W * W)
-  dW -= 2 * reg * W
+  dW += 2 * reg * W
   
   #############################################################################
   #                          END OF YOUR CODE                                 #
