@@ -77,7 +77,8 @@ class TwoLayerNet(object):
     # shape (N, C).                                                             #
     #############################################################################
     hidden_logits = np.dot(X, W1) + b1
-    hidden_activation_logits = np.maximum(0, hidden_logits)
+    activated_logits = hidden_logits > 0
+    hidden_activation_logits = hidden_logits * activated_logits
     scores = np.dot(hidden_activation_logits, W2) + b2
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -117,6 +118,8 @@ class TwoLayerNet(object):
     #############################################################################
     dW2 = np.zeros_like(W2)
     db2 = np.zeros_like(b2)
+    dW1 = np.zeros_like(W1)
+    db1 = np.zeros_like(b1)
 
     def eval_dln(exp_ratios, len_y):
       grad_ln = 1 / exp_ratios
@@ -157,6 +160,16 @@ class TwoLayerNet(object):
     db2 += np.sum(dSumW1b1, axis=0)
     grads['b2'] = db2
 
+    dHidden = np.dot(dSumW1b1, W2.T)
+
+    dRelu = activated_logits * dHidden
+
+    db1 += np.sum(dRelu, axis=0)
+    grads['b1'] = db1
+
+    dW1 += np.dot(X.T, dRelu)
+    dW1 += 2 * reg * W1
+    grads['W1'] = dW1
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
