@@ -76,7 +76,9 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    pass
+    hidden_logits = np.dot(X, W1) + b1
+    hidden_activation_logits = np.maximum(0, hidden_logits)
+    scores = np.dot(hidden_activation_logits, W2) + b2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -93,7 +95,15 @@ class TwoLayerNet(object):
     # in the variable loss, which should be a scalar. Use the Softmax           #
     # classifier loss.                                                          #
     #############################################################################
-    pass
+    scores = scores - np.expand_dims(np.max(scores, axis=1), 1)
+    exps = np.exp(scores)
+    label_exps = exps[np.arange(len(y)), y]
+    sums = np.sum(exps, axis=1)
+    exp_ratios = label_exps / sums
+    losses = -np.log(exp_ratios)
+    regW1 = reg * np.sum(W1 * W1)
+    regW2 = reg * np.sum(W2 * W2)
+    loss = np.sum(losses) / len(y) + regW1 + regW2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -105,7 +115,48 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    pass
+    dW2 = np.zeros_like(W2)
+    db2 = np.zeros_like(b2)
+
+    def eval_dln(exp_ratios, len_y):
+      grad_ln = 1 / exp_ratios
+      grad_negative = -1
+      grad_average = 1 / len_y
+     
+      return grad_average * grad_negative * grad_ln
+    
+    dln = eval_dln(exp_ratios, len(y))
+
+    def eval_numerator_dExp(label_exps, sums, y, scores_shape, dln):
+      grad_exp = label_exps
+      grad_label_exps_multiply = 1 / sums
+
+      dExpPreDot = dln * grad_label_exps_multiply * grad_exp
+      dExp = np.zeros(scores_shape)
+      dExp[np.arange(len(y)), y] = dExpPreDot
+      return dExp
+
+    numerator_dExp = eval_numerator_dExp(label_exps, sums, y, scores.shape, dln)
+
+    def eval_denominator_dExp(exps, sums, label_exps, dln):
+      grad_exp = exps
+      grad_flip = -1 / (sums * sums)
+      grad_label_exps_multiply = label_exps
+
+      dSum = dln * grad_label_exps_multiply * grad_flip
+      return grad_exp * np.expand_dims(dSum, 1)
+
+    denominator_dExp = eval_denominator_dExp(exps, sums, label_exps, dln)
+
+    dSumW1b1 = denominator_dExp + numerator_dExp
+
+    dW2 += np.dot(hidden_activation_logits.T, dSumW1b1)
+    dW2 += reg * 2 * W2
+    grads['W2'] = dW2
+
+    db2 += np.sum(dSumW1b1, axis=0)
+    grads['b2'] = db2
+
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
