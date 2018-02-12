@@ -41,7 +41,7 @@ class TwoLayerNet(object):
     self.params['W2'] = std * np.random.randn(hidden_size, output_size)
     self.params['b2'] = np.zeros(output_size)
 
-  def loss(self, X, y=None, reg=0.0):
+  def loss(self, X, y=None, reg=0.0, dropout=None):
     """
     Compute the loss and gradients for a two layer fully connected neural
     network.
@@ -77,6 +77,12 @@ class TwoLayerNet(object):
     # shape (N, C).                                                             #
     #############################################################################
     hidden_logits = np.dot(X, W1) + b1
+    if dropout == None:
+      dropouts = np.ones_like(hidden_logits)
+    else:
+      dropouts = (np.random.rand(*hidden_logits.shape) < p) / p
+
+    hidden_logits *= dropouts
     activated_logits = hidden_logits > 0
     hidden_activation_logits = hidden_logits * activated_logits
     scores = np.dot(hidden_activation_logits, W2) + b2
@@ -163,11 +169,12 @@ class TwoLayerNet(object):
     dHidden = np.dot(dSumW1b1, W2.T)
 
     dRelu = activated_logits * dHidden
+    dDropout = dropouts * dRelu
 
-    db1 += np.sum(dRelu, axis=0)
+    db1 += np.sum(dDropout, axis=0)
     grads['b1'] = db1
 
-    dW1 += np.dot(X.T, dRelu)
+    dW1 += np.dot(X.T, dDropout)
     dW1 += 2 * reg * W1
     grads['W1'] = dW1
     #############################################################################
@@ -179,7 +186,7 @@ class TwoLayerNet(object):
   def train(self, X, y, X_val, y_val,
             learning_rate=1e-3, learning_rate_decay=0.95,
             reg=5e-6, num_iters=100,
-            batch_size=200, verbose=False):
+            batch_size=200, verbose=False, dropout=None):
     """
     Train this neural network using stochastic gradient descent.
 
@@ -221,7 +228,7 @@ class TwoLayerNet(object):
       #########################################################################
 
       # Compute loss and gradients using the current minibatch
-      loss, grads = self.loss(X_batch, y=y_batch, reg=reg)
+      loss, grads = self.loss(X_batch, y=y_batch, reg=reg, dropout=dropout)
       loss_history.append(loss)
 
       #########################################################################
