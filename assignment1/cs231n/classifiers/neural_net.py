@@ -80,7 +80,7 @@ class TwoLayerNet(object):
     if dropout == None:
       dropouts = np.ones_like(hidden_logits)
     else:
-      dropouts = (np.random.rand(*hidden_logits.shape) < p) / p
+      dropouts = (np.random.rand(*hidden_logits.shape) < dropout) / dropout
 
     hidden_logits *= dropouts
     activated_logits = hidden_logits > 0
@@ -106,7 +106,7 @@ class TwoLayerNet(object):
     exps = np.exp(scores)
     label_exps = exps[np.arange(len(y)), y]
     sums = np.sum(exps, axis=1)
-    exp_ratios = label_exps / sums
+    exp_ratios = label_exps / np.maximum(sums, 1e-8)
     losses = -np.log(exp_ratios)
     regW1 = reg * np.sum(W1 * W1)
     regW2 = reg * np.sum(W2 * W2)
