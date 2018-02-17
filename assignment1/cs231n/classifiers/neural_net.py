@@ -237,6 +237,25 @@ class TwoLayerNet(object):
       # using stochastic gradient descent. You'll need to use the gradients   #
       # stored in the grads dictionary defined above.                         #
       #########################################################################
+      #print("params W1", self.params['W1'][:3][:3])
+      #print("grads W1", grads['W1'][:3][:3])
+
+      #print("params b1", self.params['b1'][:3][:3])
+      #print("grads b1", grads['b1'][:3][:3])
+
+      #print("params W2", self.params['W2'][:3][:3])
+      #print("grads W2", grads['W2'][:3][:3])
+
+      #print("params b2", self.params['b2'][:3][:3])
+      #print("grads b2", grads['b2'][:3][:3])
+
+      if verbose and it % 50 == 0:
+        print("grads W1 mean", np.absolute(grads['W1']).mean())
+        print("grads b1 mean", np.absolute(grads['b1']).mean())
+        print("grads W2 mean", np.absolute(grads['W2']).mean())
+        print("grads b2 mean", np.absolute(grads['b2']).mean())
+        #from IPython.core.debugger import Tracer; Tracer()()
+
       self.params['W1'] -= learning_rate * grads['W1']
       self.params['b1'] -= learning_rate * grads['b1']
       self.params['W2'] -= learning_rate * grads['W2']
