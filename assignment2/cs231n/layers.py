@@ -230,6 +230,26 @@ def batchnorm_backward(dout, cache):
     dbeta = np.sum(dout, axis=0)
     (normalized_x, x, gamma, beta, sample_mean, sample_var, eps) = cache
     dgamma = np.sum(dout * normalized_x, axis=0)
+
+    dnormalized_x = dout * gamma
+    dxx = dnormalized_x * (1 / np.sqrt(sample_var + eps))
+    dx = dxx.copy()
+
+    # variance
+    ddenominator = dnormalized_x * (x - sample_mean)
+    dinverse = ddenominator * -1 * (1 / (sample_var + eps))
+    dsqrt = dinverse * 0.5 * (1 / np.sqrt(sample_var + eps))
+    m = x.shape[0]
+    daxis0sum = dsqrt * (1 / m)
+    daxis0sum = np.sum(daxis0sum, axis=0)
+    dadd = daxis0sum * (x - sample_mean) * 2
+    dx += dadd
+
+    # mean
+    du1 = dxx * -1
+    du2 = dadd * -1
+    du = du1 + du2
+    dx += np.sum(du * (1 / m), axis=0)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -265,7 +285,9 @@ def batchnorm_backward_alt(dout, cache):
     dx = sample_var_eps * (1/m) * gamma * (dout * m
                                            - np.sum(dout, axis=0)
                                            - (normalized_x * np.sum(normalized_x * dout, axis=0)))
-    #dbeta = 
+    dbeta = np.sum(dout, axis=0)
+    (normalized_x, x, gamma, beta, sample_mean, sample_var, eps) = cache
+    dgamma = np.sum(dout * normalized_x, axis=0)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
