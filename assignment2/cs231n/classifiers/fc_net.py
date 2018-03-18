@@ -273,7 +273,13 @@ class FullyConnectedNet(object):
                                                                  betas,
                                                                  self.bn_params[layer_number])
             layer_input, relu_cache = relu_forward(layer_input)
-            hidden_layer_caches.append((affine_cache, batchnorm_cache, relu_cache))
+            dropout_cache = None
+            if self.use_dropout:
+                layer_input, dropout_cache = dropout_forward(layer_input, self.dropout_param)
+            hidden_layer_caches.append((affine_cache,
+                                        batchnorm_cache,
+                                        relu_cache,
+                                        dropout_cache))
 
         weights = self.params['W%d' % (self.num_layers)]
         biases = self.params['b%d' % (self.num_layers)]
@@ -316,7 +322,9 @@ class FullyConnectedNet(object):
         grads['W%d' % (self.num_layers)] = dw
         grads['b%d' % (self.num_layers)] = db
         reversed_hidden_caches = reversed(list(enumerate(hidden_layer_caches)))
-        for layer_number, (affine_cache, batchnorm_cache, relu_cache) in reversed_hidden_caches:
+        for layer_number, (affine_cache, batchnorm_cache, relu_cache, dropout_cache) in reversed_hidden_caches:
+            if self.use_dropout:
+                dout = dropout_backward(dout, dropout_cache)
             dout = relu_backward(dout, relu_cache)
             if self.use_batchnorm:
                 dout, dgamma, dbeta = batchnorm_backward_alt(dout, batchnorm_cache)
