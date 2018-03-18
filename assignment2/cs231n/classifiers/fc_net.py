@@ -191,6 +191,9 @@ class FullyConnectedNet(object):
         for layer_number, hidden_dim in enumerate(hidden_dims):
             self.params['W%d' % (layer_number + 1)] = np.random.normal(scale=weight_scale,
                                                                    size=(layer_input_dim, hidden_dim))
+            if self.use_batchnorm:
+                self.params['gamma%d' % (layer_number + 1)] = np.ones((hidden_dim,))
+                self.params['beta%d' % (layer_number + 1)] = np.zeros((hidden_dim,))
             self.params['b%d' % (layer_number + 1)] = np.zeros((hidden_dim,))
             layer_input_dim = hidden_dim
         self.params['W%d' % (self.num_layers)] = np.random.normal(scale=weight_scale,
@@ -261,8 +264,16 @@ class FullyConnectedNet(object):
             layer_input, affine_cache = affine_forward(layer_input,
                                                       weights,
                                                       biases)
+            batchnorm_cache = None
+            if self.use_batchnorm:
+                gammas = self.params['gamma%d' % (layer_number + 1)]
+                betas = self.params['beta%d' % (layer_number + 1)]
+                layer_input, batchnorm_cache = batchnorm_forward(layer_input,
+                                                                 gammas,
+                                                                 betas,
+                                                                 self.bn_params[layer_number])
             layer_input, relu_cache = relu_forward(layer_input)
-            hidden_layer_caches.append((affine_cache, relu_cache))
+            hidden_layer_caches.append((affine_cache, batchnorm_cache, relu_cache))
 
         weights = self.params['W%d' % (self.num_layers)]
         biases = self.params['b%d' % (self.num_layers)]
@@ -305,8 +316,12 @@ class FullyConnectedNet(object):
         grads['W%d' % (self.num_layers)] = dw
         grads['b%d' % (self.num_layers)] = db
         reversed_hidden_caches = reversed(list(enumerate(hidden_layer_caches)))
-        for layer_number, (affine_cache, relu_cache) in reversed_hidden_caches:
+        for layer_number, (affine_cache, batchnorm_cache, relu_cache) in reversed_hidden_caches:
             dout = relu_backward(dout, relu_cache)
+            if self.use_batchnorm:
+                dout, dgamma, dbeta = batchnorm_backward_alt(dout, batchnorm_cache)
+                grads['gamma%d' % (layer_number + 1)] = dgamma
+                grads['beta%d' % (layer_number + 1)] = dbeta
             dout, dw, db = affine_backward(dout, affine_cache)
             dw += self.reg * self.params['W%d' % (layer_number + 1)]
             grads['W%d' % (layer_number + 1)] = dw
