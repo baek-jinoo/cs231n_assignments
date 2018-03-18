@@ -401,7 +401,46 @@ def conv_forward_naive(x, w, b, conv_param):
     # TODO: Implement the convolutional forward pass.                         #
     # Hint: you can use the function np.pad for padding.                      #
     ###########################################################################
-    pass
+    F, C, HH, WW = w.shape
+    N, C, H, W = x.shape
+    pad = conv_param['pad']
+    paddedH = H + pad * 2
+    paddedW = W + pad * 2
+    stride = conv_param['stride']
+    oH = int(1 + (H + 2 * pad - HH) / stride)
+    oW = int(1 + (W + 2 * pad - WW) / stride)
+    image_outs = np.empty((0, F, oH, oW), np.float64)
+    w_reshaped = w.reshape(w.shape[0], -1)
+    for image in x:
+        fibres = np.empty((0, C, HH, WW), np.float64)
+        if pad > 0:
+            channels = np.empty((0, paddedH, paddedW), np.float64)
+            for channel in image:
+                padded_channel = np.pad(channel, ((pad, pad), (pad, pad)), 'constant', constant_values=((0, 0), (0, 0)))
+                channels = np.append(channels, np.expand_dims(padded_channel, axis=0), axis=0)
+        else:
+            channels = image
+        for idx in range(oH*oW):
+            h_shift = int(idx / oW) * stride
+            w_shift = int(idx % oH * stride)
+            fibre = channels[:, h_shift:HH+h_shift, w_shift:WW+w_shift]
+            fibres = np.append(fibres, np.expand_dims(fibre, axis=0), axis=0)
+
+        fibres_reshaped = fibres.reshape(fibres.shape[0], -1)
+        dot = np.dot(fibres_reshaped, w_reshaped.T)
+        image_out = dot.T.reshape(F, oH, oW) + np.expand_dims(np.expand_dims(b, axis=-1), axis=-1)
+        image_outs = np.append(image_outs, np.expand_dims(image_out, axis=0), axis=0)
+
+    out = image_outs
+
+    #fibres_reshaped = fibres.reshape(fibres.shape[0], -1)
+    #print("w.shape", w.shape)
+    #print("fibres.shape", fibres.shape)
+    #print("w_reshaped", w_reshaped.shape)
+    #print("fibres_reshaped shape", fibres_reshaped.shape)
+    #dot = np.dot(w_reshaped, fibres_reshaped.T)
+    #dot = np.array(np.split(dot.T, N))
+    #out = dot.reshape(N, F, oH, oW) + np.expand_dims(np.expand_dims(np.expand_dims(b, axis=0), axis=-1), axis=-1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
