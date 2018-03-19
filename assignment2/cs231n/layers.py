@@ -432,15 +432,6 @@ def conv_forward_naive(x, w, b, conv_param):
         image_outs = np.append(image_outs, np.expand_dims(image_out, axis=0), axis=0)
 
     out = image_outs
-
-    #fibres_reshaped = fibres.reshape(fibres.shape[0], -1)
-    #print("w.shape", w.shape)
-    #print("fibres.shape", fibres.shape)
-    #print("w_reshaped", w_reshaped.shape)
-    #print("fibres_reshaped shape", fibres_reshaped.shape)
-    #dot = np.dot(w_reshaped, fibres_reshaped.T)
-    #dot = np.array(np.split(dot.T, N))
-    #out = dot.reshape(N, F, oH, oW) + np.expand_dims(np.expand_dims(np.expand_dims(b, axis=0), axis=-1), axis=-1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
