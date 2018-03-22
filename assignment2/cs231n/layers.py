@@ -461,11 +461,13 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     (x, w, b, conv_param, fibres_in_images) = cache
     F, C, HH, WW = w.shape
-    #N, C, H, W = x.shape
+    N, C, H, W = x.shape
     pad = conv_param['pad']
     stride = conv_param['stride']
+    oH = int(1 + (H + 2 * pad - HH) / stride)
+    oW = int(1 + (W + 2 * pad - WW) / stride)
 
-    N, F, oH, oW = dout.shape
+    N, F, dH, dW = dout.shape
     image_outs = np.empty((0, F, oH, oW), np.float64)
     sum_over_neurons = np.sum(dout, axis=(2, 3))
     db = np.sum(sum_over_neurons, axis=0)
@@ -476,13 +478,26 @@ def conv_backward_naive(dout, cache):
     #N, F, C, H, W = fibres_in_images
     dw = np.zeros_like(w)
     for idx, fibres in enumerate(fibres_in_images):
-        print("fibres.shape", fibres.shape)
         reshaped_fibres = fibres.reshape(fibres.shape[0], -1)
-        print("dout[idx].shape", dout[idx].shape)
         reshaped_dout_idx = dout[idx].reshape(dout[idx].shape[0], -1)
-        lj = np.dot(reshaped_dout_idx, reshaped_fibres)
-        dw += lj.reshape(w.shape)
-    
+        reshaped_dw = np.dot(reshaped_dout_idx, reshaped_fibres)
+        dw += reshaped_dw.reshape(w.shape)
+
+    w_reshaped = w.reshape(w.shape[0], -1)
+    dx = np.zeros((N, C, H + pad * 2, W + pad * 2))
+    for data_idx, data in enumerate(dout):
+        outer = np.zeros((dH*dW, C*HH*WW))
+        for idx, filter_dout in enumerate(data):
+            filter_dout_raveled = np.ravel(filter_dout)
+            outer += np.outer(filter_dout_raveled, w_reshaped[idx])
+        outer = outer.reshape(25, 3, 3, 3)
+        for idx, neuron in enumerate(outer):
+            h_shift = int(idx / oW) * stride
+            w_shift = int(idx % oH * stride)
+            dx[data_idx, :, h_shift:h_shift + HH, w_shift:w_shift + WW] += neuron
+
+    dx = dx[:, :, 1:-1, 1:-1]
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
