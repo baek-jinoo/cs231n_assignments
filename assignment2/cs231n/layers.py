@@ -532,21 +532,32 @@ def max_pool_forward_naive(x, pool_param):
 
     num_neurons = oH * oW
     out = np.empty((0, C, oH, oW), np.float64)
+    out_args = []
     for image in x:
         channels = np.empty((0, oH, oW), np.float64)
+        channel_args = []
         for channel in image:
             output = []
+            args = []
             for i in range(num_neurons):
                 h_shift = int(i / oW) * stride
                 w_shift = int(i % oH) * stride
-                output.append(np.amax(channel[h_shift:h_shift + pool_height, w_shift:w_shift + pool_width]))
+                wat = channel[h_shift:h_shift + pool_height, w_shift:w_shift + pool_width]
+                amax = np.amax(wat)
+                output.append(amax)
+                temp = np.zeros_like(wat)
+                argmax = np.unravel_index(wat.argmax(), wat.shape)
+                temp[argmax] = 1
+                args.append(temp)
             output = np.array(output).reshape(oH, oW)
             channels = np.append(channels, np.expand_dims(output, axis=0), axis=0)
+            channel_args.append(args)
         out = np.append(out, np.expand_dims(channels, axis=0), axis=0)
+        out_args.append(channel_args)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    cache = (x, pool_param)
+    cache = (x, pool_param, out_args)
     return out, cache
 
 
@@ -565,7 +576,20 @@ def max_pool_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the max pooling backward pass                           #
     ###########################################################################
-    pass
+    (x, pool_param, out_args) = cache
+    N, C, H, W = x.shape
+    stride = pool_param['stride']
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    oH = int(1 + (H - pool_height) / stride)
+    oW = int(1 + (W - pool_width) / stride)
+
+    out_args = np.array(out_args)
+    print("out_args.shape", out_args.shape)
+    print("dout.shape", dout.shape)
+    np.swapaxes(out_args, 3, 4)
+    dx = out_args.reshape(3, 2, 16, -1) * dout.reshape(3, 2, 16, -1)
+    dx = dx.reshape(3, 2, 8, 8)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
