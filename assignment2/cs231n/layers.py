@@ -411,6 +411,8 @@ def conv_forward_naive(x, w, b, conv_param):
     oW = int(1 + (W + 2 * pad - WW) / stride)
     image_outs = np.empty((0, F, oH, oW), np.float64)
     w_reshaped = w.reshape(w.shape[0], -1)
+    num_neurons = oH*oW
+    fibres_in_images = np.empty((0, num_neurons, C, HH, WW), np.float64)
     for image in x:
         fibres = np.empty((0, C, HH, WW), np.float64)
         if pad > 0:
@@ -420,12 +422,13 @@ def conv_forward_naive(x, w, b, conv_param):
                 channels = np.append(channels, np.expand_dims(padded_channel, axis=0), axis=0)
         else:
             channels = image
-        for idx in range(oH*oW):
+        for idx in range(num_neurons):
             h_shift = int(idx / oW) * stride
             w_shift = int(idx % oH * stride)
             fibre = channels[:, h_shift:HH+h_shift, w_shift:WW+w_shift]
             fibres = np.append(fibres, np.expand_dims(fibre, axis=0), axis=0)
 
+        fibres_in_images = np.append(fibres_in_images, np.expand_dims(fibres, axis=0), axis=0)
         fibres_reshaped = fibres.reshape(fibres.shape[0], -1)
         dot = np.dot(fibres_reshaped, w_reshaped.T)
         image_out = dot.T.reshape(F, oH, oW) + np.expand_dims(np.expand_dims(b, axis=-1), axis=-1)
@@ -435,7 +438,7 @@ def conv_forward_naive(x, w, b, conv_param):
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
-    cache = (x, w, b, conv_param)
+    cache = (x, w, b, conv_param, fibres_in_images)
     return out, cache
 
 
@@ -456,7 +459,30 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
+    (x, w, b, conv_param, fibres_in_images) = cache
+    F, C, HH, WW = w.shape
+    #N, C, H, W = x.shape
+    pad = conv_param['pad']
+    stride = conv_param['stride']
+
+    N, F, oH, oW = dout.shape
+    image_outs = np.empty((0, F, oH, oW), np.float64)
+    sum_over_neurons = np.sum(dout, axis=(2, 3))
+    db = np.sum(sum_over_neurons, axis=0)
+    print("dout.shape", dout.shape)
+
+    # loop over fibres
+    print("fibres_in_images.shape", fibres_in_images.shape)
+    #N, F, C, H, W = fibres_in_images
+    dw = np.zeros_like(w)
+    for idx, fibres in enumerate(fibres_in_images):
+        print("fibres.shape", fibres.shape)
+        reshaped_fibres = fibres.reshape(fibres.shape[0], -1)
+        print("dout[idx].shape", dout[idx].shape)
+        reshaped_dout_idx = dout[idx].reshape(dout[idx].shape[0], -1)
+        lj = np.dot(reshaped_dout_idx, reshaped_fibres)
+        dw += lj.reshape(w.shape)
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
