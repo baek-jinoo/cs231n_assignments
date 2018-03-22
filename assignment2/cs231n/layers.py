@@ -523,7 +523,26 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # TODO: Implement the max pooling forward pass                            #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    stride = pool_param['stride']
+    pool_height = pool_param['pool_height']
+    pool_width = pool_param['pool_width']
+    oH = int(1 + (H - pool_height) / stride)
+    oW = int(1 + (W - pool_width) / stride)
+
+    num_neurons = oH * oW
+    out = np.empty((0, C, oH, oW), np.float64)
+    for image in x:
+        channels = np.empty((0, oH, oW), np.float64)
+        for channel in image:
+            output = []
+            for i in range(num_neurons):
+                h_shift = int(i / oW) * stride
+                w_shift = int(i % oH) * stride
+                output.append(np.amax(channel[h_shift:h_shift + pool_height, w_shift:w_shift + pool_width]))
+            output = np.array(output).reshape(oH, oW)
+            channels = np.append(channels, np.expand_dims(output, axis=0), axis=0)
+        out = np.append(out, np.expand_dims(channels, axis=0), axis=0)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
