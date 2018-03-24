@@ -471,10 +471,8 @@ def conv_backward_naive(dout, cache):
     image_outs = np.empty((0, F, oH, oW), np.float64)
     sum_over_neurons = np.sum(dout, axis=(2, 3))
     db = np.sum(sum_over_neurons, axis=0)
-    print("dout.shape", dout.shape)
 
     # loop over fibres
-    print("fibres_in_images.shape", fibres_in_images.shape)
     #N, F, C, H, W = fibres_in_images
     dw = np.zeros_like(w)
     for idx, fibres in enumerate(fibres_in_images):
@@ -490,7 +488,7 @@ def conv_backward_naive(dout, cache):
         for idx, filter_dout in enumerate(data):
             filter_dout_raveled = np.ravel(filter_dout)
             outer += np.outer(filter_dout_raveled, w_reshaped[idx])
-        outer = outer.reshape(25, 3, 3, 3)
+        outer = outer.reshape(dH*dW, C, HH, WW)
         for idx, neuron in enumerate(outer):
             h_shift = int(idx / oW) * stride
             w_shift = int(idx % oH * stride)
@@ -523,7 +521,7 @@ def max_pool_forward_naive(x, pool_param):
     ###########################################################################
     # TODO: Implement the max pooling forward pass                            #
     ###########################################################################
-    N, C, H, W = x.shape
+    _, C, H, W = x.shape
     stride = pool_param['stride']
     pool_height = pool_param['pool_height']
     pool_width = pool_param['pool_width']
@@ -532,34 +530,34 @@ def max_pool_forward_naive(x, pool_param):
 
     num_neurons = oH * oW
     out = np.empty((0, C, oH, oW), np.float64)
-    out_args = []
+    out_args = np.empty((0, C, oH, oW, pool_height, pool_width), np.float64)
     for image in x:
         channels = np.empty((0, oH, oW), np.float64)
-        channel_args = []
+        channel_args = np.empty((0, oH, oW, pool_height, pool_width), np.float64)
         for channel in image:
             output = []
             args = []
             for i in range(num_neurons):
                 h_shift = int(i / oW) * stride
                 w_shift = int(i % oH) * stride
-                wat = channel[h_shift:h_shift + pool_height, w_shift:w_shift + pool_width]
-                amax = np.amax(wat)
+                window = channel[h_shift:h_shift + pool_height, w_shift:w_shift + pool_width]
+                amax = np.amax(window)
                 output.append(amax)
-                temp = np.zeros_like(wat)
-                argmax = np.unravel_index(wat.argmax(), wat.shape)
+                temp = np.zeros_like(window)
+                argmax = np.unravel_index(window.argmax(), window.shape)
                 temp[argmax] = 1
                 args.append(temp)
             output = np.array(output).reshape(oH, oW)
             channels = np.append(channels, np.expand_dims(output, axis=0), axis=0)
-            channel_args.append(args)
+            args = np.array(args).reshape(oH, oW, pool_height, pool_width)
+            channel_args = np.append(channel_args, np.expand_dims(args, axis=0), axis=0)
         out = np.append(out, np.expand_dims(channels, axis=0), axis=0)
-        out_args.append(channel_args)
+        out_args = np.append(out_args, np.expand_dims(channel_args, axis=0), axis=0)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
     cache = (x, pool_param, out_args)
     return out, cache
-
 
 def max_pool_backward_naive(dout, cache):
     """
@@ -577,19 +575,19 @@ def max_pool_backward_naive(dout, cache):
     # TODO: Implement the max pooling backward pass                           #
     ###########################################################################
     (x, pool_param, out_args) = cache
-    N, C, H, W = x.shape
+    _, _, H, W = x.shape
     stride = pool_param['stride']
     pool_height = pool_param['pool_height']
     pool_width = pool_param['pool_width']
     oH = int(1 + (H - pool_height) / stride)
     oW = int(1 + (W - pool_width) / stride)
 
-    out_args = np.array(out_args)
-    print("out_args.shape", out_args.shape)
-    print("dout.shape", dout.shape)
-    np.swapaxes(out_args, 3, 4)
-    dx = out_args.reshape(3, 2, 16, -1) * dout.reshape(3, 2, 16, -1)
-    dx = dx.reshape(3, 2, 8, 8)
+    # multiply the zeros pool windows with max index set to 1 and the gradient scalar
+    dx = out_args.reshape(*out_args.shape[:4], -1) * dout.reshape(*dout.shape[:4], -1)
+    # change shape and swap axes to conform to the correct sequence of fibres
+    dx = dx.reshape(*dx.shape[:-1], pool_height, pool_width)
+    dx = np.swapaxes(dx, len(dx.shape) - 2, len(dx.shape) - 3)
+    dx = dx.reshape(*x.shape)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -627,7 +625,12 @@ def spatial_batchnorm_forward(x, gamma, beta, bn_param):
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                            #
     ###########################################################################
-    pass
+    N, C, H, W = x.shape
+    swapped_x = np.swapaxes(x, 0, 1)
+    reshaped_x = swapped_x.reshape(C, -1).T
+    out, cache = batchnorm_forward(reshaped_x, gamma, beta, bn_param)
+    out = out.T.reshape(C, N, H, W)
+    out = np.swapaxes(out, 0, 1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
@@ -657,7 +660,12 @@ def spatial_batchnorm_backward(dout, cache):
     # version of batch normalization defined above. Your implementation should#
     # be very short; ours is less than five lines.                            #
     ###########################################################################
-    pass
+    N, C, H, W = dout.shape
+    swapped_dout = np.swapaxes(dout, 0, 1)
+    reshaped_dout = swapped_dout.reshape(C, -1).T
+    dx, dgamma, dbeta = batchnorm_backward_alt(reshaped_dout, cache)
+    dx = dx.T.reshape(C, N, H, W)
+    dx = np.swapaxes(dx, 0, 1)
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
