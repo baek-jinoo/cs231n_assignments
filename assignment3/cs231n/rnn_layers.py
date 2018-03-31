@@ -190,7 +190,8 @@ def word_embedding_forward(x, W):
     #                                                                            #
     # HINT: This can be done in one line using NumPy's array indexing.           #
     ##############################################################################
-    pass
+    out = W[x[:, np.arange(x.shape[1])]]
+    cache = (x, W)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -219,7 +220,27 @@ def word_embedding_backward(dout, cache):
     # Note that Words can appear more than once in a sequence.                   #
     # HINT: Look up the function np.add.at                                       #
     ##############################################################################
-    pass
+    x, W = cache
+    dW = np.zeros_like(W)
+
+    def create_indexes_list(x, W):
+        _, D = W.shape
+        indexes = x[:, np.arange(x.shape[1])] # (N, T)
+        indexes = indexes.flatten() # (N * T)
+        indexes = np.expand_dims(indexes, axis=1) # (N * T, )
+        indexes = np.repeat(indexes, D, axis=1) # (N * T, D) repeated
+
+        aranges = np.expand_dims(np.arange(D), axis=0) # (, D) index references for each word vector
+        aranges = np.repeat(aranges, indexes.shape[0], axis=0) # (N *T, D) repeat for all N * T
+
+        indexes = np.dstack((indexes, aranges)) # (N * T, D, 2) make it a 2-d index for dW
+        indexes = indexes.reshape(-1, 2) # flatten except for the last dimension to preserve 2-d index
+        indexes = indexes.T # flip it for np.add.at
+        return indexes.tolist() # ndarray does something different for np.add.at
+
+    dout_flatten = dout.flatten()
+    indexes = create_indexes_list(x, W)
+    np.add.at(dW, indexes, dout_flatten)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
