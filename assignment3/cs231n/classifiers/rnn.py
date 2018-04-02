@@ -220,7 +220,17 @@ class CaptioningRNN(object):
         # functions; you'll need to call rnn_step_forward or lstm_step_forward in #
         # a loop.                                                                 #
         ###########################################################################
-        pass
+        prev_h = np.dot(features, W_proj) + b_proj
+        current_x = W_embed[self._start]
+        h = []
+        for t in range(max_length):
+            next_h, _ = rnn_step_forward(current_x, prev_h, Wx, Wh, b)
+            temporal_affine_forward(next_h, )
+            h.append(next_h)
+            prev_h = next_h
+
+        temporal_out, temporal_cache = temporal_affine_forward(h, W_vocab, b_vocab)
+        loss, _ = temporal_softmax_loss(temporal_out, captions_out, mask)
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
