@@ -221,16 +221,18 @@ class CaptioningRNN(object):
         # a loop.                                                                 #
         ###########################################################################
         prev_h = np.dot(features, W_proj) + b_proj
-        current_x = W_embed[self._start]
-        h = []
-        for t in range(max_length):
+        current_word = np.ones((N), dtype=np.int32) * self._start
+        captions[:, 0] = current_word
+        for i in range(1, max_length):
+            current_x = W_embed[current_word]
             next_h, _ = rnn_step_forward(current_x, prev_h, Wx, Wh, b)
-            temporal_affine_forward(next_h, )
-            h.append(next_h)
             prev_h = next_h
 
-        temporal_out, temporal_cache = temporal_affine_forward(h, W_vocab, b_vocab)
-        loss, _ = temporal_softmax_loss(temporal_out, captions_out, mask)
+            next_h_t = np.expand_dims(next_h, axis=1)
+            score, _ = temporal_affine_forward(next_h_t, W_vocab, b_vocab)
+            score = np.squeeze(score)
+            current_word = np.argmax(score, axis=1)
+            captions[:, i] = current_word
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
