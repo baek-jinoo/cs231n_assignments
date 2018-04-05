@@ -3,6 +3,7 @@ from builtins import object
 import numpy as np
 
 from cs231n.layers import *
+from cs231n import rnn_layers
 from cs231n.rnn_layers import *
 
 
@@ -139,7 +140,13 @@ class CaptioningRNN(object):
         ############################################################################
         h0 = np.dot(features, W_proj) + b_proj
         x, w_embed_cache = word_embedding_forward(captions_in, W_embed)
-        h, rnn_cache = rnn_forward(x, h0, Wx, Wh, b)
+
+        if self.cell_type == 'rnn':
+            forward_function = getattr(rnn_layers, 'rnn_forward')
+        else:
+            forward_function = getattr(rnn_layers, 'lstm_forward')
+        h, rnn_cache = forward_function(x, h0, Wx, Wh, b)
+
         temporal_out, temporal_cache = temporal_affine_forward(h, W_vocab, b_vocab)
         loss, softmax_dx = temporal_softmax_loss(temporal_out, captions_out, mask)
 
@@ -147,7 +154,12 @@ class CaptioningRNN(object):
         grads['W_vocab'] = dW_vocab
         grads['b_vocab'] = db_vocab
 
-        dx, dh0, dWx, dWh, db = rnn_backward(dh, rnn_cache)
+        if self.cell_type == 'rnn':
+            backward_function = getattr(rnn_layers, 'rnn_backward')
+        else:
+            backward_function = getattr(rnn_layers, 'lstm_backward')
+        dx, dh0, dWx, dWh, db = backward_function(dh, rnn_cache)
+
         grads['Wx'] = dWx
         grads['Wh'] = dWh
         grads['b'] = db
@@ -221,11 +233,17 @@ class CaptioningRNN(object):
         # a loop.                                                                 #
         ###########################################################################
         prev_h = np.dot(features, W_proj) + b_proj
+        prev_c = np.zeros_like(prev_h)
         current_word = np.ones((N), dtype=np.int32) * self._start
         captions[:, 0] = current_word
         for i in range(1, max_length):
             current_x = W_embed[current_word]
-            next_h, _ = rnn_step_forward(current_x, prev_h, Wx, Wh, b)
+            if self.cell_type == 'rnn':
+                next_h, _ = rnn_step_forward(current_x, prev_h, Wx, Wh, b)
+            else:
+                next_h, next_c, _ = lstm_step_forward(current_x, prev_h, prev_c, Wx, Wh, b)
+                prev_c = next_c
+
             prev_h = next_h
 
             next_h_t = np.expand_dims(next_h, axis=1)
