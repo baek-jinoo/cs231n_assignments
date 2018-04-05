@@ -396,7 +396,23 @@ def lstm_forward(x, h0, Wx, Wh, b):
     # TODO: Implement the forward pass for an LSTM over an entire timeseries.   #
     # You should use the lstm_step_forward function that you just defined.      #
     #############################################################################
-    pass
+
+    h = []
+    caches = []
+    prev_h = h0
+    prev_c = np.zeros_like(h0)
+    D, _ = Wx.shape
+    H, _ = Wh.shape
+    x = np.swapaxes(x, 0, 1)
+    for x_t in x:
+        next_h, next_c, next_cache = lstm_step_forward(x_t, prev_h, prev_c, Wx, Wh, b)
+        h.append(next_h)
+        caches.append(next_cache)
+        prev_h = next_h
+        prev_c = next_c
+    h = np.array(h)
+    h = np.swapaxes(h, 0, 1)
+    cache = (caches, D, H)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -424,7 +440,33 @@ def lstm_backward(dh, cache):
     # TODO: Implement the backward pass for an LSTM over an entire timeseries.  #
     # You should use the lstm_step_backward function that you just defined.     #
     #############################################################################
-    pass
+    caches, D, H = cache
+    N, _, _ = dh.shape
+    dh = np.swapaxes(dh, 0, 1)
+
+    dx = []
+    dWx = np.zeros((D, 4 * H))
+    dWh = np.zeros((H, 4 * H))
+    db = np.zeros((4 * H,))
+    dnext_h = np.zeros((N, H))
+    dnext_c = np.zeros((N, H))
+    for idx, dh_t in enumerate(reversed(dh)):
+        step_cache = caches[-(idx + 1)]
+        #dh_t += dnext_h # this doesn't work for some reason
+        dh_t = dh_t + dnext_h
+        ldx, ldprev_h, ldprev_c, ldWx, ldWh, ldb = lstm_step_backward(dh_t, dnext_c, step_cache)
+
+        dnext_h = ldprev_h
+        dnext_c = ldprev_c
+
+        dx.append(ldx)
+        dWx += ldWx
+        dWh += ldWh
+        db += ldb
+
+    dx = np.array(list(reversed(dx)))
+    dx = np.swapaxes(dx, 0, 1)
+    dh0 = dnext_h
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
