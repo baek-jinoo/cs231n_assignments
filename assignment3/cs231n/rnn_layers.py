@@ -297,8 +297,8 @@ def lstm_step_forward(x, prev_h, prev_c, Wx, Wh, b):
 
     next_c = f * prev_c + i * g
     tanh_next_c = np.tanh(next_c)
-    next_h = o * np.tanh(next_c)
-    cache = (x, prev_h, prev_c, next_c, tanh_next_c, i, f, o, g)
+    next_h = o * tanh_next_c
+    cache = (x, prev_h, prev_c, next_c, tanh_next_c, i, f, o, g, a_ifog, Wx, Wh)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
@@ -330,31 +330,38 @@ def lstm_step_backward(dnext_h, dnext_c, cache):
     # HINT: For sigmoid and tanh you can compute local derivatives in terms of  #
     # the output value from the nonlinearity.                                   #
     #############################################################################
-    #1 - np.tanh()**2
-    #(sigmoid(x) - 1) / sigmoid(x)
+    x, prev_h, prev_c, next_c, tanh_next_c, i, f, o, g, a_ifog, Wx, Wh = cache
 
-    #a = np.dot(x, Wx) + np.dot(prev_h, Wh) + b
-
-    #N, H = prev_h.shape
-    #a_ifog = a.reshape(N, 4, H)
-    #i = sigmoid(a_ifog[:, 0])
-    #f = sigmoid(a_ifog[:, 1])
-    #o = sigmoid(a_ifog[:, 2])
-    #g = np.tanh(a_ifog[:, 3])
-
-    #next_c = f * prev_c + i * g
-    #next_h = o * np.tanh(next_c)
-    x, prev_h, prev_c, next_c, tanh_next_c, i, f, o, g = cache
     do = tanh_next_c * dnext_h
-    dao = (sigmoid(do) - 1) / sigmoid(do)
+    a_o = a_ifog[:, 2]
+    da_o = do * (1 - sigmoid(a_o)) * sigmoid(a_o)
 
     dtanh_next_c = dnext_h * o
-    dnext_c_from_next_h = 1 - np.tanh(dtanh_next_c)**2
+    dnext_c_from_next_h = (1 - np.tanh(next_c)**2) * dtanh_next_c
     dnext_c += dnext_c_from_next_h
 
     dprev_c = dnext_c * f
+    dsigmoid_f = dnext_c * prev_c
+    a_f = a_ifog[:, 1]
+    da_f = dsigmoid_f * (1 - sigmoid(a_f)) * sigmoid(a_f)
 
+    dtanh_g = dnext_c * i
+    a_g = a_ifog[:, 3]
+    da_g = dtanh_g * (1 - np.tanh(a_g)**2)
 
+    dsigmoid_i = dnext_c * g
+    a_i = a_ifog[:, 0]
+    da_i = dsigmoid_i * (1 - sigmoid(a_i)) * sigmoid(a_i)
+
+    da_ifog = np.hstack((da_i, da_f, da_o, da_g))
+
+    dWx = np.dot(x.T, da_ifog)
+    dx = np.dot(da_ifog, Wx.T)
+
+    dWh = np.dot(prev_h.T, da_ifog)
+    dprev_h = np.dot(da_ifog, Wh.T)
+
+    db = np.sum(da_ifog, axis=0)
     ##############################################################################
     #                               END OF YOUR CODE                             #
     ##############################################################################
